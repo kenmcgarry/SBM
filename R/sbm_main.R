@@ -13,9 +13,13 @@ library(latentnet)
 library(heuristica)
 library(igraph)
 library(Matrix)
+library(UserNetR)
+
+help(package="UserNetR")  # useful list of data sets from Doug Luke.
 
 ####################################################################
 # French political bog dataset
+fblog <- upgrade_graph(fblog)
 fblog.sbm <- mixer(as.matrix(get.adjacency(fblog)),qmin=2, qmax=15)
 fblog.sbm.output <- getModel(fblog.sbm)
 names(fblog.sbm.output)
@@ -48,7 +52,7 @@ log(lazega.sbm.output$q, 2)
 summary(apply(lazega.sbm.output$Taus, 2, my.ent))
 plot(lazega.sbm, classes=as.factor(V(lazega)$Practice))
 
-
+###################################################################
 # Zachary data set
 data(karate)
 zachary <- upgrade_graph(karate)
@@ -58,7 +62,7 @@ zachary.sbm.output <- getModel(zachary.sbm)
 names(zachary.sbm.output)
 
 zachary.sbm.output$q
-zachary.sbm.output$alphas
+zachary.sbm.output$RR
 zachary.sbm.output$Taus
 
 my.ent <- function(x){-sum(x*log(x,2))}
@@ -85,7 +89,7 @@ plot(zachary.sbm, classes=as.factor(V(zachary)$Faction))
 
 
 
-
+### plots only ####
 # random graph example
 g <- erdos.renyi.game(10, p=1/2) + erdos.renyi.game(10, p=1/2)
 # Plot the adjacency matrix
