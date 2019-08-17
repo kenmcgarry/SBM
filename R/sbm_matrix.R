@@ -1,16 +1,37 @@
-# sbm_main.R
-# Commenced 27/07/19, including LaTex file.
-# Using the Kolacyzk and Csardi book.  # Minimum Kullback-Leibler (MKL) positions
-# https://cran.r-project.org/web/packages/heuristica/vignettes/README.html
-# https://www.smartcat.io/blog/2017/fast-matrix-factorization-in-r/
-# https://blog.acolyer.org/2019/02/18/the-why-and-how-of-nonnegative-matrix-factorization/
+# sbm_matrix.R
+# For each data set, get the complex network statistics:
+# 1. create r x r diagonal matrices for eigen(hubness), closeness, betweeness & degree
+# 2. integrate the three matrices using linear algebra combinations 
+#
+# For each data set, get the SBM statistics:
+# 1.
+# 2.
+#
+# For each data set, get the link communities
+# 1.
+# 2. 
 
+# https://towardsdatascience.com/prototyping-a-recommender-system-step-by-step-part-2-alternating-least-square-als-matrix-4a76c58714a1
 
-setwd("C:/common_laptop/R-files/sbm")
-source("sbm_functions.R")
-source("sbm_buildmodels.R")
-source("sbm_matrix.R")
+### Do it ###
+## zachary complex net ##
+gstats <- graphstats(zachary)
+gstats[,5] <- row.names(gstats)
+head(gstats)
 
+n <- length(V(zachary)) # how many nodes?
+B <- matrix(0, n, n); C <- matrix(0, n, n);D <- matrix(0, n, n);E <- matrix(0, n, n);
+A <- get.adjacency(zachary)
+diag(B) <- gstats$between
+diag(C) <- gstats$close
+diag(D) <- gstats$degree
+diag(E) <- gstats$hubness
+
+by_hub <- gstats %>% group_by(hubness)
+by_hub <- gstats %>% arrange(desc(hubness))
+xtable(by_hub)  # make table for the paper
+## zachary SBM ##
+zachary.sbm.output$Taus
 
 
 ##################### MATRIX FACTORIZATION ########################
