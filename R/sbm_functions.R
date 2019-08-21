@@ -8,11 +8,11 @@ graphstats <- function(gt) {
   #nverts <- vcount(gt)
   #transit <- transitivity(gt)
   degree <- igraph::degree(gt)
-  close <- closeness(gt)
-  between <- betweenness(gt,directed=FALSE)
-  hubness <-hub_score(gt)$vector
-  gstats <- data.frame(degree, close, between, hubness)
-  return(gstats)
+  close <- igraph::closeness(gt)
+  between <- igraph::betweenness(gt,directed=FALSE)
+  hubness <- igraph::hub_score(gt)$vector
+  gs <- data.frame(degree, close, between, hubness)
+  return(gs)
 }
 
 # calculate entropy
@@ -68,6 +68,167 @@ plot_power2 <- function(gs){
 }
 
 
+############################################################
+# Plot the Pis matrix and alphas vector using spectral decomposition
+plotparam <- function(Pis,alphas,q=NULL){
+  q <- length(alphas)
+  if (q==1) {D <- list(vector=data.frame(1,1)); a <- b <- 1} else {
+    if (q==2) {a<-b<-1} else {a<-2; b<-3}
+    D <- colSums(Pis)
+    L <- diag(rep(1,q)) -  diag(D^(-1/2)) %*% Pis %*% diag(D^(-1/2))
+    D <- eigen(L)
+  }
+  
+  plot(D$vector[,a],D$vector[,b],
+       cex=1/min(alphas^(1/2))*alphas^(1/2)*3,
+       axes=FALSE,xlab="",ylab="",
+       main="Spectral view of the connection matrix",pch=19,col="red")
+  points(D$vector[,a],D$vector[,b],cex=1/min(alphas^(1/2))*alphas^(1/2)*3)
+  
+  text(D$vector[,a],D$vector[,b],label=1:q)  
+  # plot arrows
+  gplot((Pis>median(Pis))*Pis,vertex.cex=1/min(alphas^(1/2))*alphas^(1/2)*3,edge.lwd=(Pis>median(Pis))*Pis*1/min(median(Pis)),label=1:length(alphas),label.pos=6)
+}
 
+
+
+############################################################
+# Plot the icl criterion
+
+ploticl<-function(x,q,...)
+{
+  if (x$method == "bayesian" ){
+    title = "Bayesian criterion vs class number"
+    y.lab = "Bayesian criterion"
+  } else {
+    title = "Integrated Classification Likelihood"
+    y.lab = "ICL"
+  }
+  Q<-unlist(lapply(x$output,ICL<-function(x) length(x$alphas)))
+  ICL<-unlist(lapply(x$output,ICL<-function(x) x$criterion))
+  plot(Q,ICL,xlab="Number of classes",ylab=y.lab,main=title)
+  lines(Q,ICL)
+  abline(v=q,col="red",lty=2)
+}
+
+
+############################################################
+# Plot the reorganized adjacency matrix
+
+mixture<-function(x,alphas,lambdaq){
+  fx<-0; for (q in 1:length(alphas)) {
+    fx<-fx+alphas[q]*dpois(x,lambda=lambdaq[q])
+  }
+  return(fx)
+}
+
+plotmixture<-function(degrees,Pis,alphas,n, directed=FALSE){
+  if( directed )
+    colSums(Pis*alphas)*(2*n-2)->lambdaq
+  else
+    colSums(Pis*alphas)*(n-1)->lambdaq
+  
+  # Remove unconnected nodes
+  degrees <- degrees[ which( degrees != 0) ]
+  min(degrees):max(degrees)->x
+  mixture(x,alphas,lambdaq)->y
+  histo<-hist(degrees,plot=FALSE)
+  plot(histo,ylim=c(0,max(histo$density,y)),freq=FALSE,col=7,main="Degree distribution",)
+  lines(x,y,lwd=2,col="blue")
+  points(x,y)
+}
+
+##############################################################
+#  Spectral Clustering using normalized Laplacian
+##############################################################
+spectralkmeans<-function(x,q=2){
+  #INPUT:
+  #    x is an adjacency matrix
+  #OUTPUT:
+  #    An object of class "kmeans" which is a list with components:
+  n<-dim(x)[1]
+  D<-colSums(x)
+  L<-diag(rep(1,n)) -  diag(D^(-1/2))%*% x %*% diag(D^(-1/2))
+  eigen(L)->D
+  kmeans(as.matrix(D$vectors[,max(1,(n-q)): (n-1)]),q) -> res         
+}
+
+##############################################################
+#  Compute the rand index between two partition
+##############################################################
+randError<-function(x, y) {
+  # function to calculate the adjusted rand statistic
+  # x and y are vectors containing the two partitions to be compared
+  # first, get crosstabs
+  ctab <- table(x,y);
+  
+  # now calculate 4 intermediary sums
+  cellsum <- sum(ctab*(ctab-1)/2)
+  totsum <- sum(ctab)*(sum(ctab)-1)/2
+  
+  # use matrix multiplication to get row and column marginal sums
+  rows <- ctab %*% rep(1,ncol(ctab))
+  rowsum <- sum(rows*(rows-1)/2)
+  cols <- rep(1,nrow(ctab)) %*% ctab
+  colsum <- sum(cols*(cols-1)/2)
+  # now put them together
+  adj.rand <- (cellsum - (rowsum*colsum/totsum))/(.5*(rowsum +colsum)-(rowsum*colsum/totsum))
+  return (adj.rand);
+}
+
+##########################################################
+graph.affiliation<-function( n=100,
+                             alphaVect=c(1/2,1/2), lambda=0.7, epsilon=0.05,
+                             directed=FALSE) {
+  # INPUT  n: number of vertex
+  #           alphaVect : vecteur of class proportion
+  #           lambda: proba of edge given  same classe
+  #           epsilon: proba of edge given two different classes
+  # OUTPUT x: adjacency matrix
+  #              cluster: class vector
+  #           
+  
+  x<-matrix(0,n,n);
+  Q<-length(alphaVect);
+  NodeToClass <- vector(length=n) 
+  rmultinom(1, size=n, prob = alphaVect)->nq;
+  Z<-class.ind(rep(1:Q,nq));
+  Z<-Z[sample(1:n,n),];
+  for (i in 1:n) {
+    NodeToClass[i] <- which.max( Z[i,] )
+  }
+  for (i in 1:n) {
+    if ( i != n) {
+      for (j in (i+1):n) {
+        # if i and j in same class
+        if ( NodeToClass[i] ==  NodeToClass[j]) p<-lambda else  p<-epsilon
+        if ( (rbinom(1,1,p) )) { x[i,j] <- 1 }
+      }
+      if ( directed ) {
+        if ( i != 1) {
+          for (j in 1:(i-1)) {
+            if ( NodeToClass[i] ==  NodeToClass[j]) p<-lambda else  p<-epsilon
+            if ( (rbinom(1,1,p) )) { x[i,j] <- 1 }
+          }
+        }
+      }
+    }
+  }
+  if ( ! directed ) {
+    x <- x + t(x)
+  }
+  return(list(x=x,cluster=apply(Z,1,which.max)) )   
+}
+################################
+class.ind<-function (cl)
+{ 
+  n <- length(cl)
+  cl <- as.factor(cl)
+  x <- matrix(0, n, length(levels(cl)))
+  x[(1:n) + n * (unclass(cl) - 1)] <- 1
+  dimnames(x) <- list(names(cl), levels(cl))
+  x
+}
+#################################
 
 

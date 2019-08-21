@@ -20,19 +20,80 @@ gstats[,5] <- row.names(gstats)
 head(gstats)
 
 n <- length(V(zachary)) # how many nodes?
-B <- matrix(0, n, n); C <- matrix(0, n, n);D <- matrix(0, n, n);E <- matrix(0, n, n);
+A <- B <- C <- D <- E <- matrix(0, n, n) # create the matrices
 A <- get.adjacency(zachary)
-diag(B) <- gstats$between
-diag(C) <- gstats$close
-diag(D) <- gstats$degree
-diag(E) <- gstats$hubness
+B <- gstats$between
+C <- gstats$close
+D <- gstats$degree
+E <- gstats$hubness
+E <- diag(E)
 
 by_hub <- gstats %>% group_by(hubness)
 by_hub <- gstats %>% arrange(desc(hubness))
 xtable(by_hub)  # make table for the paper
-## zachary SBM ##
-zachary.sbm.output$Taus
 
+## zachary SBM ##
+# internals of sbm
+zachary.sbm.output$q                # No of classes (n)
+zachary.sbm.output$criterion        # ICL criterion used for model selection
+zachary.sbm.output$Taus             # matrix of posterior probabilities (n x actors)
+zachary.sbm.output$alphas           # vector of proportion for each class n
+zachary.sbm.output$Pis              # class connectivity matrix (n x n)
+
+# mergeclass <- function(Pis,alphas,q=NULL){
+  q <- length(zachary.sbm.output$alphas)
+  if (q==1) {D <- list(vector=data.frame(1,1)); a <- b <- 1} else {
+    if (q==2) {a<-b<-1} else {a<-2; b<-3}
+    D <- colSums(zachary.sbm.output$Pis)
+    L <- diag(rep(1,q)) -  diag(D^(-1/2)) %*% zachary.sbm.output$Pis %*% diag(D^(-1/2))
+    D <- eigen(L)  # D$vectors
+    D$vectors  # plot(D$vector[,a],D$vector[,b])
+  }
+
+# class merging if necessary
+q <- length(zachary.sbm.output$alphas)
+q <- length(lazega.sbm.output$alphas)
+q <- length(fblog.sbm.output$alphas)
+
+U <- zachary.sbm.output$alphas
+Z <- zachary.sbm.output$Pis  
+X <- zachary.sbm.output$Taus
+
+Z <- lazega.sbm.output$Pis  
+X <- lazega.sbm.output$Taus
+Z <- fblog.sbm.output$Pis
+X <- fblog.sbm.output$Taus
+  
+X[X < .5] <- 0
+X[X >=.5] <- 1 
+rowSums(X)
+
+for(i in 1:q){
+  #cat("\n",which(Z[,i] > 0.5 )," ")
+  merge <- which(Z[,i] > 0.7 )
+  if(length(merge)>1){
+    cat("\n merge classes ",merge)} else{cat("\n Nothing to merge")}
+}
+
+res <- NMF::nmf(X,3)   # version 1
+res <- NNLM::nnmf(X,3)   # version 2
+W <- basis(res)
+H <- coef(res)
+W <- res$W
+H <- res$H
+Y <- W%*%H   # should restore X (more or less)
+D <- eigen(Y)
+
+Z <- A %*% E
+
+ev <- eigen(A)
+K <- ev$values
+V <- ev$vectors
+J <- V %*% diag(K) %*% t(V)  # Matrix factorization, the matrix A can 
+                             # be represented as the product.
+
+Z <- U %*% diag(K) %*% t(U)  # test changes here
+diag(Z)
 
 ##################### MATRIX FACTORIZATION ########################
 # integrate the complex network, the SBM and the link clustering network
@@ -127,7 +188,6 @@ res <- NMF::nmf(X, 3, meth, seed=123456)
 
 
 ############# another package #############################
-library()
 
 
 

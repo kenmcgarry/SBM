@@ -6,15 +6,16 @@ library(sand)
 library(network)
 #library(sna)
 #library(ergm)
-library(latentnet)
-#library(heuristica)
+#library(latentnet)
 library(igraph)
 library(Matrix)
 library(UserNetR)
-library(linkcomm)
+#library(linkcomm)
 library(data.table)
 library(poweRlaw)
 library(xtable)
+library(gplots)
+library(NMF)
 
 help(package="UserNetR")  # useful list of data sets from Doug Luke.
 
@@ -65,50 +66,51 @@ zachary.sbm <- mixer(as.matrix(get.adjacency(zachary)),qmin=2, qmax=15)
 zachary.sbm.output <- getModel(zachary.sbm)
 names(zachary.sbm.output)
 
-zachary.sbm.output$q
-zachary.sbm.output$criterion
-zachary.sbm.output$Taus
-zachary.sbm.output$alphas
-zachary.sbm.output$Pis
-
 apply(zachary.sbm.output$Taus[,1:3], 2, my.ent)
 log(zachary.sbm.output$q, 2)
 summary(apply(zachary.sbm.output$Taus, 2, my.ent))
 plot(zachary.sbm, classes=as.factor(V(zachary)$Faction))
 
 # build linked network
-edgelist <- as_edgelist(zachary, names = TRUE)  # get edgelist for linkcomm process
-zachary.link <-getLinkCommunities(edgelist)
-plot(zachary.link, type = "graph",layout = "spencer.circle")
-plot(zachary.link, type = "members")
-getAllNestedComm(zachary.link)
-plot(zachary.link, type = "graph", clusterids = c(5,12))
-zachr <- getClusterRelatedness(zachary.link, hcmethod = "ward.D")
+#edgelist <- as_edgelist(zachary, names = TRUE)  # get edgelist for linkcomm process
+#zachary.link <-getLinkCommunities(edgelist)
+#plot(zachary.link, type = "graph",layout = "spencer.circle")
+#plot(zachary.link, type = "members")
+#getAllNestedComm(zachary.link)
+#plot(zachary.link, type = "graph", clusterids = c(5,12))
+#zachr <- getClusterRelatedness(zachary.link, hcmethod = "ward.D")
 
-zachcc <- getCommunityCentrality(zachary.link)
-head(sort(zachcc, decreasing = TRUE))
+#zachcc <- getCommunityCentrality(zachary.link)
+#head(sort(zachcc, decreasing = TRUE))
+#zachdense <- LinkDensities(zachary.link)
+#zachcm <- getCommunityConnectedness(zachary.link)
+#zachmod <- getCommunityConnectedness(zachary.link, conn = "mod")
+#plot(zachary.link, type = "commsumm", summary = "modularity")
 
-zachdense <- LinkDensities(zachary.link)
-zachcm <- getCommunityConnectedness(zachary.link)
-zachmod <- getCommunityConnectedness(zachary.link, conn = "mod")
-
-plot(zachary.link, type = "commsumm", summary = "modularity")
-
-zach_df <- data.frame(density=zachdense, connectivity=zachcm,modularity=zachmod)
-xtable(zach_df)
+#zach_df <- data.frame(density=zachdense, connectivity=zachcm,modularity=zachmod)
+#xtable(zach_df)
 
 # the membership matrix needs to be told there are 34 nodes, otherwise it just defaults to 20
-zachmatrix <- getCommunityMatrix(zachary.link,nodes=head(names(zachary.link$numclusters),34))
-zachoverlap <- get.community.overlaps(zachary.link)
-
-
-plot(zachary.link, type = "members")
-
-summary(zachary.link)
+#zachmatrix <- getCommunityMatrix(zachary.link,nodes=head(names(zachary.link$numclusters),34))
+#zachoverlap <- get.community.overlaps(zachary.link)
+#plot(zachary.link, type = "members")
+#summary(zachary.link)
 
 ######################################################################
 # 
+data("yeast")
+yeast.sbm <- mixer(as.matrix(get.adjacency(yeast)),qmin=2, qmax=15)
+yeast.sbm.output <- getModel(yeast.sbm)
+names(yeast.sbm.output)
 
+yeast.sbm.output$q
+fblog.sbm.output$alphas
+fblog.sbm.output$Taus
+
+apply(fblog.sbm.output$Taus[,1:3], 2, my.ent)
+log(fblog.sbm.output$q, 2)
+summary(apply(fblog.sbm.output$Taus, 2, my.ent))
+plot(fblog.sbm, classes=as.factor(V(fblog)$PolParty))
 
 ######################################################################
 # 
