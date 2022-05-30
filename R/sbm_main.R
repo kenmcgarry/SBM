@@ -4,20 +4,41 @@
 # https://cran.r-project.org/web/packages/heuristica/vignettes/README.html
 # https://www.smartcat.io/blog/2017/fast-matrix-factorization-in-r/
 # https://blog.acolyer.org/2019/02/18/the-why-and-how-of-nonnegative-matrix-factorization/
+# https://blog.acolyer.org/2019/02/13/beyond-news-contents-the-role-of-social-context-for-fake-news-detection/
 
+library(mixer)
+library(dplyr)
+library(sand)
+library(network)
+library(ggplot2)
+#library(sna)
+#library(ergm)
+#library(latentnet)
+library(igraph)
+library(Matrix)
+library(UserNetR)
+#library(linkcomm)
+library(data.table)
+library(poweRlaw)
+library(xtable)
+library(gplots)
+library(NMF)
+library(blockmatrix)
+library(blockmodeling)
 
 setwd("C:/common_laptop/R-files/sbm")
 source("sbm_functions.R")
 source("sbm_buildmodels.R")
 source("sbm_matrix.R")
-
+source("sbm_others.R")  # compare/contrast with other methods
 
 
 ##################### MATRIX FACTORIZATION ########################
-# integrate the complex network, the SBM and the link clustering network
+# integrate the complex network and the SBM
 # https://cran.r-project.org/web/packages/blocksdesign/vignettes/design_Vignette.pdf
-#
-library(blockmatrix)
+
+
+##### blockmatrix package examples ####
 
 A <- array(rnorm(9,mean=1),c(3,3))
 B <- array(rnorm(9,mean=2),c(3,3))
@@ -44,10 +65,9 @@ E <- blockmatrix(names=c("0","F","D","0"),F=F,D=D,dim=c(2,2))
 E[,1] <- M[,1]
 
 ##### blockmodeling package #########
-library(blockmodeling)
-n <- 20
+n <- 15
 net <- matrix(NA, ncol = n, nrow = n)
-clu <- rep(1:2, times = c(5, 15))
+clu <- rep(1:2, times = c(5, 10))
 tclu <- table(clu)
 net[clu == 1, clu == 1] <- rnorm(n = tclu[1] * tclu[1], mean = 0, sd = 1)
 net[clu == 1, clu == 2] <- rnorm(n = tclu[1] * tclu[2], mean = 4, sd = 1)
@@ -75,7 +95,6 @@ D <- sedist(M = net)
 plot.mat(net, clu = cutree(hclust(d = D, method = "ward.D"), k = 2))
 
 ############ NMFN package #############
-#library(NMFN)
 library(NNLM)
 
 X <- matrix(1:16,4,4)
@@ -90,6 +109,25 @@ init <-list(W =matrix(runif(nrow(nsclc)*k), ncol = k),
 
 ##############   NMF package  ##########################
 library(NMF)
+
+# generate a synthetic dataset with known classes: 20 features, 23 samples (10+5+8)
+n <- 20; counts <- c(10, 5, 8);
+p <- sum(counts)
+x <- NMF::syntheticNMF(n, counts)
+dim(x)
+
+# build the true cluster membership
+groups <- unlist(mapply(rep, seq(counts), counts))
+# run on a data.frame
+res <- NMF::nmf(data.frame(x), 3)
+# missing method: use algorithm suitable for seed
+res <- NMF::nmf(x, 2, seed=rnmf(2, x))
+NMF::algorithm(res)
+
+# compare some NMF algorithms (tracking the approximation error)
+res <- NMF::nmf(x, 2, list('brunet', 'lee', 'nsNMF'), .options='t')
+plot(res)
+
 # load the Golub data
 data(esGolub)
 X <- matrix(1:12,3,4)
@@ -103,11 +141,7 @@ meth <- NMF::nmfAlgorithm(version='R')
 meth <- c(names(meth), meth)
 meth
 res <- NMF::nmf(X, 3, meth, seed=123456)
-
-
-############# another package #############################
-library()
-
+plot(res)
 
 
 ### plots only ####

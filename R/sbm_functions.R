@@ -95,7 +95,7 @@ plotparam <- function(Pis,alphas,q=NULL){
 ############################################################
 # Plot the icl criterion
 
-ploticl<-function(x,q,...)
+ploticl <- function(x,q,...)
 {
   if (x$method == "bayesian" ){
     title = "Bayesian criterion vs class number"
@@ -115,7 +115,7 @@ ploticl<-function(x,q,...)
 ############################################################
 # Plot the reorganized adjacency matrix
 
-mixture<-function(x,alphas,lambdaq){
+mixture <- function(x,alphas,lambdaq){
   fx<-0; for (q in 1:length(alphas)) {
     fx<-fx+alphas[q]*dpois(x,lambda=lambdaq[q])
   }
@@ -141,7 +141,7 @@ plotmixture<-function(degrees,Pis,alphas,n, directed=FALSE){
 ##############################################################
 #  Spectral Clustering using normalized Laplacian
 ##############################################################
-spectralkmeans<-function(x,q=2){
+spectralkmeans <- function(x,q=2){
   #INPUT:
   #    x is an adjacency matrix
   #OUTPUT:
@@ -230,5 +230,67 @@ class.ind<-function (cl)
   x
 }
 #################################
+
+subgraph_density <-function(graph, gvert){
+  graph %>% 
+  igraph::induced_subgraph(gvert) %>%
+  density()
+}
+
+##########################################################################
+#' Calculate AICc (Akaike Information Criterion). Lower values of AICc indicate some 
+#' combination of better fit to the data and more parsimony in the model (fewer free parameters).
+#' @param LnL The log-likelihood (typically negative, but may not be for continuous data).
+#' @param numparams The number of parameters for each model.
+#' @param samplesize The number of data on which the model conferred likelihood.
+#' @return \code{AICcval} A vector of AICc results.
+#' @export
+#' @seealso \code{\link{calc_AICc_column}}, \code{\link{calc_AICc_column}}
+getAICc <- function(LnL, numparams, samplesize)
+{
+ if (numparams >= samplesize)
+  {
+    stop("ERROR!  You cannot have more parameters than samples in AICc, you get bizarre results.")
+  }
+  
+  # Calculate AIC
+  AICval = 2*numparams - 2*LnL
+  
+  # Correction for finite sample size
+  correction_val = (2*numparams*(numparams+1)) / (samplesize - numparams - 1)
+  AICc_val = AICval + correction_val
+  
+  return(AICc_val)
+}
+
+
+
+#####################################################
+# The Girvan-Newman benchmarks can already be generated through igraph_preference_game, 
+# or more generally a block-model. Hence, you can also generate clusters of varying sizes. 
+# The only difference with LFR is that the degree distribution will be something like 
+# a mixture of Poisson distributions and cannot be separately specified [Vincent Traag].
+# However, here we try different approach.
+
+girvan_benchmark <- function(g){
+# let's see if we have communities here using the Girvan-Newman algorithm
+# 1st we calculate the edge betweenness, merges, etc...
+  ebc <- igraph::edge.betweenness.community(g, directed=F)
+
+# Now we have the merges/splits and we need to calculate the modularity
+# for each merge for this we'll use a function that for each edge
+# removed will create a second graph, check for its membership and use
+# that membership to calculate the modularity
+  mods <- sapply(0:ecount(g), function(i){
+  g2 <- igraph::delete.edges(g, ebc$removed.edges[seq(length=i)])
+  cl <- igraph::clusters(g2)$membership
+  igraph::modularity(g,cl)
+})
+
+# we can now plot all modularities
+  plot(mods, pch=20, type="line", 
+       col="blue",panel.first = grid(),ylab="Adjusted Rand Index",xlab="External degree")
+}
+
 
 

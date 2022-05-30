@@ -2,14 +2,6 @@
 # For each data set, get the complex network statistics:
 # 1. create r x r diagonal matrices for eigen(hubness), closeness, betweeness & degree
 # 2. integrate the three matrices using linear algebra combinations 
-#
-# For each data set, get the SBM statistics:
-# 1.
-# 2.
-#
-# For each data set, get the link communities
-# 1.
-# 2. 
 
 # https://towardsdatascience.com/prototyping-a-recommender-system-step-by-step-part-2-alternating-least-square-als-matrix-4a76c58714a1
 
@@ -17,7 +9,25 @@
 ## zachary complex net ##
 gstats <- graphstats(zachary)
 gstats[,5] <- row.names(gstats)
-head(gstats)
+head(gstats,10)
+by_hub <- gstats %>% arrange(desc(hubness))
+xtable(by_hub)  # make table for the paper
+
+## Fblog complex net ##
+gstats <- graphstats(fblog)
+gstats[,5] <- row.names(gstats)
+head(gstats,10)
+by_hub <- gstats %>% arrange(desc(hubness))
+xtable(by_hub) # make table for the paper
+
+## Lazega net
+gstats <- graphstats(lazega)
+gstats[,5] <- row.names(gstats)
+head(gstats,10)
+by_hub <- gstats %>% arrange(desc(hubness))
+xtable(by_hub) # make table for the paper
+
+
 
 n <- length(V(zachary)) # how many nodes?
 A <- B <- C <- D <- E <- matrix(0, n, n) # create the matrices
@@ -76,7 +86,7 @@ for(i in 1:q){
 }
 
 res <- NMF::nmf(X,3)   # version 1
-res <- NNLM::nnmf(X,3)   # version 2
+res <- NMF::nmf(X)   # version 2
 W <- basis(res)
 H <- coef(res)
 W <- res$W
@@ -89,89 +99,25 @@ Z <- A %*% E
 ev <- eigen(A)
 K <- ev$values
 V <- ev$vectors
-J <- V %*% diag(K) %*% t(V)  # Matrix factorization, the matrix A can 
-                             # be represented as the product.
+J <- V %*% diag(K) %*% t(V)  # Matrix factorization,matrix A can be represented as the product.
 
 Z <- U %*% diag(K) %*% t(U)  # test changes here
 diag(Z)
 
-##################### MATRIX FACTORIZATION ########################
-# integrate the complex network, the SBM and the link clustering network
-# https://cran.r-project.org/web/packages/blocksdesign/vignettes/design_Vignette.pdf
-#
-library(blockmatrix)
+### igraph csardi version ###
+library(NMF)
+basis <- matrix( c(1,2,3,4, 4,3,2,1),4,2)
+A <- matrix(0,4,3)
+A[,1] <- .9*basis[,1]+.1*basis[,2]
+A[,2] <- .5*basis[,1]+.5*basis[,2]
+A[,3] <- .1*basis[,1]+.9*basis[,2]
+csNMF <- NMF::nmf(A, rank=2,method = 'brunet')
+sum(abs(basis(csNMF) %*% coef(csNMF) - A ))              
 
-A <- array(rnorm(9,mean=1),c(3,3))
-B <- array(rnorm(9,mean=2),c(3,3))
-C <- 0
-D <- array(rnorm(9,mean=4),c(3,3))
-F <- array(rnorm(9,mean=10),c(3,3))
-M <- blockmatrix(names=c("A","0","D","0"),A=A,D=D,dim=c(2,2))
-E <- blockmatrix(names=c("0","F","D","0"),F=F,D=D,dim=c(2,2))
-R <- M+E
-S <- solve(R)
-P <- blockmatmult(R,E)
-l <- list(A=A,B=B,C=C,D=D,F=F)
-mv <- array(c("A","B","C","D","F","F"),c(3,2))
-BB <- blockmatrix(value=mv,list=l)
-
-
-A <- array(rnorm(9,mean=1),c(3,3))
-B <- 0 #array(rnorm(9,mean=2),c(3,3))
-C <- 0
-D <- array(rnorm(9,mean=4),c(3,3))
-F <- array(rnorm(9,mean=10),c(3,3))
-M <- blockmatrix(names=c("A","0","D","0"),A=A,D=D,dim=c(2,2))
-E <- blockmatrix(names=c("0","F","D","0"),F=F,D=D,dim=c(2,2))
-E[,1] <- M[,1]
-
-##### blockmodeling package #########
-library(blockmodeling)
-n <- 20
-net <- matrix(NA, ncol = n, nrow = n)
-clu <- rep(1:2, times = c(5, 15))
-tclu <- table(clu)
-net[clu == 1, clu == 1] <- rnorm(n = tclu[1] * tclu[1], mean = 0, sd = 1)
-net[clu == 1, clu == 2] <- rnorm(n = tclu[1] * tclu[2], mean = 4, sd = 1)
-net[clu == 2, clu == 1] <- rnorm(n = tclu[2] * tclu[1], mean = 0, sd = 1)
-net[clu == 2, clu == 2] <- rnorm(n = tclu[2] * tclu[2], mean = 0, sd = 1)
-
-# Ploting the network
-plotMat(M = net, clu = clu, print.digits.cells = 3)
-class(net) <- "mat"
-plot(net, clu = clu)
-
-# We select a random partition  and then optimize  it
-all.par <- nkpartitions(n = n, k = length(tclu))# Forming the partitions
-all.par <- lapply(apply(all.par, 1, list), function(x) x[[1]])# Optimizing one partition
-res <- optParC(M = net,clu = all.par[[sample(1:length(all.par), size = 1)]],
-               approaches = "hom", homFun = "ss" , blocks = "com")
-plot(res) # Hopefully we get the original partition
-
-# Optimizing 10 random partitions with optRandomParC
-res <- optRandomParC(M = net, k = 2, rep = 10,approaches = "hom", homFun = "ss", 
-                     blocks = "com")
-plot(res) # Hopefully we get the original partition# Using indirect approach - 
-# structural equivalence
-D <- sedist(M = net)
-plot.mat(net, clu = cutree(hclust(d = D, method = "ward.D"), k = 2))
-
-############ NMFN package #############
-#library(NMFN)
-library(NNLM)
-
-X <- matrix(1:16,4,4)
-z.mm   <- NNLM::nnmf(X,3)             # 3 factors via multiplicative update
-z.als  <- NNLM::nnmf(X,2,'nnmf_als')  # 3 factors via alternating least square
-z.prob <- NNLM::nnmf(X,3,'nnmf_prob') # 3 factors via multinomial
-
-k <- 15;
-init <-list(W =matrix(runif(nrow(nsclc)*k), ncol = k),
-            H =matrix(runif(ncol(nsclc)*k), nrow = k))
-
+# remember (Zitnik, 2013) paper for data integration
+                                                                                                                                                
 
 ##############   NMF package  ##########################
-library(NMF)
 # load the Golub data
 data(esGolub)
 X <- matrix(1:12,3,4)
@@ -186,11 +132,17 @@ meth <- c(names(meth), meth)
 meth
 res <- NMF::nmf(X, 3, meth, seed=123456)
 
+# nice plot of r estimation
+estim.r <- NMF::nmf(esGolub, 2:6, nrun=10, seed=123456)
+plot(estim.r)
+estim.a <- NMF::nmf(A, 1:3,nrun=10, seed=123456)
+plot(estim.a)
+V.random <- randomize(A)
+estim.a.random <- NMF::nmf(V.random, 1:5, nrun=10, seed=123456, method = 'lee')
+plot(estim.a.random)
+plot(estim.a,estim.a.random)
 
-############# another package #############################
-
-
-
+### better plot below ###
 ### plots only ####
 # random graph example
 g <- erdos.renyi.game(10, p=1/2) + erdos.renyi.game(10, p=1/2)

@@ -19,7 +19,46 @@ library(NMF)
 
 help(package="UserNetR")  # useful list of data sets from Doug Luke.
 
-####################################################################
+###############################################################################################
+# random-small
+randsmall <- sample_gnm(34,78,directed=FALSE, loops = FALSE) # random version of Zachary
+# add groundtruth i.e. a class label
+V(randsmall)$groundtruth <- sample(c(0, 1), vcount(randsmall), replace = TRUE, prob = c(0.5, 0.5))
+
+randsmall.sbm <- mixer(as.matrix(get.adjacency(randsmall)),qmin=2, qmax=15)
+randsmall.sbm.output <- getModel(randsmall.sbm)
+names(randsmall.sbm.output)
+
+randsmall.sbm.output$q
+randsmall.sbm.output$alphas
+randsmall.sbm.output$Taus
+
+apply(randsmall.sbm.output$Taus[,1:3], 2, my.ent)
+log(randsmall.sbm.output$q, 2)
+summary(apply(randsmall.sbm.output$Taus, 2, my.ent))
+plot(randsmall.sbm, classes=as.factor(V(randsmall)$groundtruth))
+
+###############################################################################################
+# random-large
+randlarge <- sample_gnm(192,1431,directed=FALSE, loops = FALSE) # random version of french blog
+# add groundtruth i.e. a class label  # unique(V(fblog)$PolParty)
+V(randlarge)$groundtruth <- sample(unique(V(fblog)$PolParty),vcount(randlarge),
+                                   replace=TRUE,prob = rep(0.11,9))
+
+randlarge.sbm <- mixer(as.matrix(get.adjacency(randlarge)),qmin=2, qmax=15)
+randlarge.sbm.output <- getModel(randlarge.sbm)
+names(randlarge.sbm.output)
+
+randlarge.sbm.output$q
+randlarge.sbm.output$alphas
+randlarge.sbm.output$Taus
+
+apply(randlarge.sbm.output$Taus[,1:3], 2, my.ent)
+log(randlarge.sbm.output$q, 2)
+summary(apply(randlarge.sbm.output$Taus, 2, my.ent))
+plot(randlarge.sbm, classes=as.factor(V(randlarge)$groundtruth))
+
+###############################################################################################
 # French political blog dataset
 fblog <- upgrade_graph(fblog)  # igraph object
 fblog.sbm <- mixer(as.matrix(get.adjacency(fblog)),qmin=2, qmax=15)
@@ -97,20 +136,20 @@ plot(zachary.sbm, classes=as.factor(V(zachary)$Faction))
 #summary(zachary.link)
 
 ######################################################################
-# 
-data("yeast")
-yeast.sbm <- mixer(as.matrix(get.adjacency(yeast)),qmin=2, qmax=15)
-yeast.sbm.output <- getModel(yeast.sbm)
-names(yeast.sbm.output)
+# Currently too large for immdeiate SBM results
+#data("yeast")
+#yeast.sbm <- mixer(as.matrix(get.adjacency(yeast)),qmin=2, qmax=15)
+#yeast.sbm.output <- getModel(yeast.sbm)
+#names(yeast.sbm.output)
 
-yeast.sbm.output$q
-fblog.sbm.output$alphas
-fblog.sbm.output$Taus
+#yeast.sbm.output$q
+#fblog.sbm.output$alphas
+#fblog.sbm.output$Taus
 
-apply(fblog.sbm.output$Taus[,1:3], 2, my.ent)
-log(fblog.sbm.output$q, 2)
-summary(apply(fblog.sbm.output$Taus, 2, my.ent))
-plot(fblog.sbm, classes=as.factor(V(fblog)$PolParty))
+#apply(fblog.sbm.output$Taus[,1:3], 2, my.ent)
+#log(fblog.sbm.output$q, 2)
+#summary(apply(fblog.sbm.output$Taus, 2, my.ent))
+#plot(fblog.sbm, classes=as.factor(V(fblog)$PolParty))
 
 ######################################################################
 # 
